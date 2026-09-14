@@ -301,7 +301,25 @@ export async function fetchAllBookings() {
   return response.json();
 }
 
-// 9. Discovery Server Health
+// 9. Intelligent AI Concierge (Phase 3)
+export async function getConciergeRecommendation({ travelStyle, guestCount, budgetPreference, preferredAmenities = [] }) {
+  const response = await apiRequest('/api/concierge/recommend', {
+    method: 'POST',
+    body: {
+      travelStyle,
+      guestCount: Number(guestCount) || 2,
+      budgetPreference,
+      preferredAmenities
+    }
+  });
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(err || 'Failed to generate AI concierge recommendation');
+  }
+  return response.json();
+}
+
+// 10. Discovery Server Health
 export async function fetchEurekaServices() {
   try {
     const res = await fetch(`${EUREKA_BASE}/eureka/apps`, {

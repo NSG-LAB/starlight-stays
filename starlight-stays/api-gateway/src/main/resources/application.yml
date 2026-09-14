@@ -48,6 +48,10 @@ spring:
         uri: lb://REVIEW-SERVICE
         predicates:
         - Path=/api/reviews/**
+      - id: concierge-service
+        uri: lb://CONCIERGE-SERVICE
+        predicates:
+        - Path=/api/concierge/**
       globalcors:
         corsConfigurations:
           '[/**]':

@@ -17,6 +17,7 @@ import {
   fetchReviews,
   createReview,
   fetchAllBookings,
+  getConciergeRecommendation,
 } from './services/api.js';
 
 import {
@@ -1243,6 +1244,85 @@ if (btnCloseAnalyticsFooter) {
 if (btnRefreshAnalytics) {
   btnRefreshAnalytics.addEventListener('click', () => {
     loadAnalytics();
+  });
+}
+
+// ---------------- DOM Elements: AI Concierge (Phase 3) ----------------
+const btnOpenConcierge = document.getElementById('btn-open-concierge');
+const conciergeModal = document.getElementById('concierge-modal');
+const btnCloseConciergeModal = document.getElementById('btn-close-concierge-modal');
+const btnCloseConciergeFooter = document.getElementById('btn-close-concierge-footer');
+const conciergeForm = document.getElementById('concierge-form');
+const conciergeStyle = document.getElementById('concierge-style');
+const conciergeGuests = document.getElementById('concierge-guests');
+const conciergeBudget = document.getElementById('concierge-budget');
+const conciergeLoading = document.getElementById('concierge-loading');
+const conciergeResult = document.getElementById('concierge-result');
+const conciergeResMatchTag = document.getElementById('concierge-res-match-tag');
+const conciergeResTitle = document.getElementById('concierge-res-title');
+const conciergeResType = document.getElementById('concierge-res-type');
+const conciergeResRationale = document.getElementById('concierge-res-rationale');
+const conciergeResItinerary = document.getElementById('concierge-res-itinerary');
+const conciergeResSignoff = document.getElementById('concierge-res-signoff');
+const btnConciergeReserve = document.getElementById('btn-concierge-reserve');
+
+let recommendedRoomId = 1;
+
+if (btnOpenConcierge) {
+  btnOpenConcierge.addEventListener('click', () => {
+    if (conciergeModal) conciergeModal.classList.remove('hidden');
+  });
+}
+
+if (btnCloseConciergeModal) {
+  btnCloseConciergeModal.addEventListener('click', () => {
+    if (conciergeModal) conciergeModal.classList.add('hidden');
+  });
+}
+
+if (btnCloseConciergeFooter) {
+  btnCloseConciergeFooter.addEventListener('click', () => {
+    if (conciergeModal) conciergeModal.classList.add('hidden');
+  });
+}
+
+if (conciergeForm) {
+  conciergeForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const travelStyle = conciergeStyle ? conciergeStyle.value : 'CELESTIAL';
+    const guestCount = conciergeGuests ? Number(conciergeGuests.value) : 2;
+    const budgetPreference = conciergeBudget ? conciergeBudget.value : 'PREMIUM';
+
+    if (conciergeLoading) conciergeLoading.classList.remove('hidden');
+    if (conciergeResult) conciergeResult.classList.add('hidden');
+
+    try {
+      const rec = await getConciergeRecommendation({ travelStyle, guestCount, budgetPreference });
+      recommendedRoomId = rec.roomId || 1;
+
+      if (conciergeResMatchTag) conciergeResMatchTag.textContent = `${rec.confidenceScore || 98}% CONCIERGE MATCH`;
+      if (conciergeResTitle) conciergeResTitle.textContent = rec.suiteName;
+      if (conciergeResType) conciergeResType.textContent = `${rec.suiteType} • $${Number(rec.nightlyRate).toFixed(2)} / night`;
+      if (conciergeResRationale) conciergeResRationale.textContent = rec.matchRationale;
+      
+      if (conciergeResItinerary) {
+        conciergeResItinerary.innerHTML = (rec.curatedThreeDayItinerary || []).map(item => `<li>${item}</li>`).join('');
+      }
+      if (conciergeResSignoff) conciergeResSignoff.textContent = rec.conciergeSignoff;
+
+      if (conciergeLoading) conciergeLoading.classList.add('hidden');
+      if (conciergeResult) conciergeResult.classList.remove('hidden');
+    } catch (err) {
+      if (conciergeLoading) conciergeLoading.classList.add('hidden');
+      showToast('Concierge Error', err.message, 'danger', 5000);
+    }
+  });
+}
+
+if (btnConciergeReserve) {
+  btnConciergeReserve.addEventListener('click', () => {
+    if (conciergeModal) conciergeModal.classList.add('hidden');
+    openBookingModal(recommendedRoomId);
   });
 }
 

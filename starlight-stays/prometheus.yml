@@ -37,3 +37,8 @@ scrape_configs:
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['review-service:8086']
+
+  - job_name: 'concierge-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['concierge-service:8087']

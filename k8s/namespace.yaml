@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: starlight-mesh
+  labels:
+    app.kubernetes.io/name: starlight-stays
+    app.kubernetes.io/part-of: hospitality-mesh

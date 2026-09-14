@@ -22,5 +22,6 @@
         <module>payment-service</module>
         <module>notification-service</module>
         <module>review-service</module>
+        <module>concierge-service</module>
     </modules>
 </project>

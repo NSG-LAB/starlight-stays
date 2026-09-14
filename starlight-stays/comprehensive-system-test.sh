@@ -145,12 +145,21 @@ NEW_REV_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$GATEWAY_URL/api/
   -d '{"roomId": 1, "guestName": "Automated CI Test", "rating": 5, "comment": "Verification passed."}')
 assert_test "POST /api/reviews creates new verified review (HTTP 201)" '[ "$NEW_REV_CODE" -eq 201 ]'
 
+echo -e "\n${CYAN}▶ SUITE 11: Intelligent AI Concierge Recommendation Service${NC}"
+STYLES_RES=$(curl -s "$GATEWAY_URL/api/concierge/styles")
+assert_test "GET /api/concierge/styles returns curated travel styles" '[[ "$STYLES_RES" == *"CELESTIAL"* ]]'
+
+REC_RES=$(curl -s -X POST "$GATEWAY_URL/api/concierge/recommend" \
+  -H "Content-Type: application/json" \
+  -d '{"travelStyle": "OCEANIC", "guestCount": 2, "budgetPreference": "PREMIUM"}')
+assert_test "POST /api/concierge/recommend generates confidence score & itinerary" '[[ "$REC_RES" == *"confidenceScore"* ]] && [[ "$REC_RES" == *"curatedThreeDayItinerary"* ]]'
+
 echo -e "\n======================================================================"
 echo -e "${BOLD}TEST SUMMARY:${NC} ${GREEN}$PASSED_COUNT Passed${NC} / ${RED}$FAILED_COUNT Failed${NC}"
 echo "======================================================================"
 
 if [ "$FAILED_COUNT" -eq 0 ]; then
-  echo -e "${GREEN}🎉 ALL 10 TEST SUITES COMPLETED WITH 100% SUCCESS!${NC}"
+  echo -e "${GREEN}🎉 ALL 11 TEST SUITES COMPLETED WITH 100% SUCCESS!${NC}"
   exit 0
 else
   echo -e "${RED}⚠️ Some test assertions failed. Inspect logs above.${NC}"

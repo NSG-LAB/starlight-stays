@@ -83,7 +83,11 @@ services:
     ports:
       - "3030:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=false
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
     depends_on:
@@ -224,6 +228,16 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      discovery-server:
+        condition: service_started
+    restart: always
+
+  concierge-service:
+    build: ./concierge-service
+    container_name: concierge-service
+    ports:
+      - "8087:8087"
+    depends_on:
       discovery-server:
         condition: service_started
     restart: always

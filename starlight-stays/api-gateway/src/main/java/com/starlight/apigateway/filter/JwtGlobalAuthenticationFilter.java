@@ -32,6 +32,7 @@ public class JwtGlobalAuthenticationFilter implements GlobalFilter, Ordered {
             path.contains("/ws-starlight") || 
             path.startsWith("/actuator") || 
             path.startsWith("/fallback") ||
+            path.startsWith("/api/concierge") ||
             (HttpMethod.GET.equals(method) && (path.startsWith("/api/rooms") || path.startsWith("/api/reviews")))) {
             return chain.filter(exchange);
         }
