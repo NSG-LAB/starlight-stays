@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starlight Stays - Admin Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        .card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; width: 100%; }
+        button:hover { background: #0056b3; }
+        .hidden { display: none; }
+        #toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: #28a745; color: white; padding: 15px 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); animation: slideIn 0.3s ease-out forwards; min-width: 250px; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .fadeOut { animation: fadeOut 0.5s ease-in forwards; }
+        @keyframes fadeOut { to { opacity: 0; transform: translateY(10px); } }
+    </style>
+</head>
+<body>
+
+    <!-- Login UI -->
+    <div id="login-ui" class="card">
+        <h2>Starlight Stays Login</h2>
+        <input type="text" id="username" placeholder="Username" value="admin">
+        <input type="password" id="password" placeholder="Password" value="password">
+        <button onclick="login()">Login</button>
+        <p id="login-error" style="color: red; font-size: 14px;" class="hidden">Invalid credentials</p>
+    </div>
+
+    <!-- Dashboard UI -->
+    <div id="dashboard-ui" class="card hidden">
+        <h2>Dashboard</h2>
+        <p>Status: <span style="color: green; font-weight: bold;">Connected to WebSocket</span></p>
+        <button onclick="dispatchAMQPEvent()" style="background: #28a745;">Simulate Booking Event</button>
+        <button onclick="logout()" style="background: #dc3545; margin-top: 15px;">Logout</button>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script>
+        let jwtToken = "";
+        let stompClient = null;
+
+        async function login() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            
+            try {
+                // Pointing directly to User Service for login (or Gateway if routing is set up)
+                const response = await fetch(`http://localhost:8080/api/users/login?username=${user}&password=${pass}`, { method: 'POST' });
+                
+                if (response.ok) {
+                    jwtToken = await response.text();
+                    document.getElementById('login-ui').classList.add('hidden');
+                    document.getElementById('dashboard-ui').classList.remove('hidden');
+                    connectWebSocket();
+                } else {
+                    document.getElementById('login-error').classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error("Login failed:", err);
+            }
+        }
+
+        function connectWebSocket() {
+            const socket = new SockJS('http://localhost:8080/ws-starlight');
+            stompClient = Stomp.over(socket);
+            stompClient.debug = null; // Disable debug logging in console
+
+            stompClient.connect({}, function (frame) {
+                stompClient.subscribe('/topic/payments', function (notification) {
+                    const message = JSON.parse(notification.body);
+                    showToast(`💳 Payment <b>${message.status}</b><br><small>${message.bookingReference}</small>`);
+                });
+            });
+        }
+
+        async function dispatchAMQPEvent() {
+            try {
+                await fetch('http://localhost:8080/api/bookings/test-event', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${jwtToken}` }
+                });
+            } catch (err) {
+                console.error("Event dispatch failed:", err);
+            }
+        }
+
+        function logout() {
+            jwtToken = "";
+            if (stompClient) stompClient.disconnect();
+            document.getElementById('dashboard-ui').classList.add('hidden');
+            document.getElementById('login-ui').classList.remove('hidden');
+        }
+
+        function showToast(htmlMsg) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = htmlMsg;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('fadeOut');
+                setTimeout(() => toast.remove(), 500);
+            }, 4000);
+        }
+    </script>
+</body>
+</html>

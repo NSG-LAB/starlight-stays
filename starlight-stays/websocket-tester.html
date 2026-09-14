@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Starlight Live Notifications</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+</head>
+<body style="font-family: sans-serif; padding: 20px;">
+    <h2>Live Payment Clearances (Via API Gateway)</h2>
+    <div id="messages" style="border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; background: #f9f9f9;"></div>
+
+    <script>
+        // Connect to the WebSocket endpoint exposed on API Gateway (8080)
+        var socket = new SockJS('http://localhost:8080/ws-starlight');
+        var stompClient = Stomp.over(socket);
+
+        stompClient.connect({}, function (frame) {
+            console.log('Connected: ' + frame);
+            
+            // Subscribe to the payments topic
+            stompClient.subscribe('/topic/payments', function (notification) {
+                var message = JSON.parse(notification.body);
+                var div = document.createElement('div');
+                div.style.padding = "5px";
+                div.style.borderBottom = "1px solid #ddd";
+                div.innerHTML = `✅ <b>${message.status}</b>: ${message.bookingReference} <br><small style="color:gray">${message.timestamp}</small>`;
+                
+                document.getElementById('messages').prepend(div);
+            });
+        }, function(error) {
+            console.error("Connection error: ", error);
+        });
+    </script>
+</body>
+</html>

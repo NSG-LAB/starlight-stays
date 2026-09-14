@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Starlight Stays | Resilient Microservices Luxury Hospitality</title>
+  <meta name="description" content="Starlight Stays luxury hospitality platform powered by Spring Cloud microservices architecture, API Gateway, Eureka discovery, RabbitMQ, and Resilience4j circuit breakers." />
+  
+  <!-- SockJS and STOMP -->
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+  
+  <link rel="stylesheet" href="./src/index.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Top Resilience Alert Banner (shown when circuit breaker opens or 503 intercepted) -->
+    <div id="circuit-breaker-banner" class="resilience-banner hidden">
+      <div class="resilience-content">
+        <span class="resilience-icon">⚡</span>
+        <div class="resilience-text">
+          <strong>Resilience4j Circuit Breaker Active:</strong>
+          <span id="cb-banner-message">Downstream booking service is temporarily protected. Requests are routing to /fallback/bookings.</span>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button id="btn-retry-cb" class="btn btn-sm btn-secondary">Retry Endpoint</button>
+        <button id="btn-dismiss-cb" class="btn btn-sm btn-ghost">Dismiss</button>
+      </div>
+    </div>
+
+    <!-- Navigation Header -->
+    <header class="navbar">
+      <div class="brand" id="brand-logo">
+        <div class="brand-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+          </svg>
+        </div>
+        <div class="brand-title">
+          STARLIGHT STAYS
+          <span class="brand-subtitle">Resilient Cloud Mesh</span>
+        </div>
+      </div>
+
+      <div class="nav-center">
+        <!-- WebSocket Real-time Status -->
+        <div class="status-pill" id="ws-status-pill" title="WebSocket STOMP listener on /ws-starlight (/topic/payments)">
+          <div class="dot disconnected" id="ws-status-dot"></div>
+          <span id="ws-status-text">WS: Disconnected</span>
+        </div>
+
+        <!-- API Gateway Status -->
+        <div class="status-pill" id="gateway-status-pill" title="Spring Cloud API Gateway Port 8080">
+          <div class="dot connected"></div>
+          <span>Gateway: 8080</span>
+        </div>
+      </div>
+
+      <div class="nav-actions">
+        <!-- My Bookings Action Button -->
+        <button id="btn-open-my-bookings" class="btn btn-secondary btn-sm" title="View your active reservations">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          My Bookings
+        </button>
+
+        <!-- User Session Controls -->
+        <div id="user-logged-in-wrap" class="user-badge hidden">
+          <div class="user-avatar" id="nav-avatar">A</div>
+          <span class="user-name" id="nav-username">admin</span>
+          <button id="btn-logout" class="btn btn-ghost btn-sm" title="Log out">Sign Out</button>
+        </div>
+
+        <button id="btn-open-login" class="btn btn-primary btn-sm">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
+          Sign In
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-container">
+      <!-- Hero Section -->
+      <section class="hero">
+        <div class="hero-left">
+          <div class="hero-tag">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polygon points="12 8 8 12 12 16 12 8"></polygon></svg>
+            Spring Cloud Microservices Architecture
+          </div>
+          <h1 class="hero-title">Celestial Stays Under <span>Infinite Stars</span></h1>
+          <p class="hero-desc">
+            Explore world-class luxury stays routed via API Gateway with automated JWT security, RabbitMQ event dispatching, real-time WebSocket payment notifications, and Resilience4j circuit breakers.
+          </p>
+          <div class="hero-actions">
+            <button id="btn-open-booking-modal" class="btn btn-primary">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+              ✨ Reserve a Luxury Stay
+            </button>
+            <button id="btn-test-cb" class="btn btn-amber">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+              Test Circuit Breaker Fallback (503)
+            </button>
+          </div>
+        </div>
+
+        <div class="hero-stats">
+          <div class="stat-box">
+            <div class="stat-value" id="stat-total-rooms">6</div>
+            <div class="stat-label">Luxury Suites</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="stat-active-rate">100%</div>
+            <div class="stat-label">Availability</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="stat-events-count">0</div>
+            <div class="stat-label">Live Events</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" style="color: var(--accent-emerald);">ACTIVE</div>
+            <div class="stat-label">Circuit Health</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Search & Filters Strip -->
+      <section class="control-strip">
+        <div class="search-filter-bar">
+          <div class="search-input-wrap">
+            <span class="search-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </span>
+            <input type="text" id="search-query" class="search-input" placeholder="Search stays by property name or suite style..." />
+          </div>
+
+          <select id="filter-type" class="filter-select">
+            <option value="ALL">All Categories</option>
+            <option value="Penthouse">Penthouse</option>
+            <option value="Villa">Villa</option>
+            <option value="Chalet">Chalet</option>
+            <option value="Bungalow">Bungalow</option>
+            <option value="Studio">Studio</option>
+          </select>
+
+          <!-- Price Point Filter -->
+          <select id="filter-price" class="filter-select">
+            <option value="ALL">All Price Tiers</option>
+            <option value="UNDER_400">Under $400 / night</option>
+            <option value="400_700">$400 – $700 / night</option>
+            <option value="ABOVE_700">$700+ / night</option>
+          </select>
+
+          <select id="filter-availability" class="filter-select">
+            <option value="ALL">All Listings</option>
+            <option value="AVAILABLE" selected>Available Only</option>
+            <option value="BOOKED">Reserved Only</option>
+          </select>
+        </div>
+
+        <div class="action-toolbar">
+          <button id="btn-refresh-rooms" class="btn btn-secondary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+            Refresh Catalog
+          </button>
+        </div>
+      </section>
+
+      <!-- Room Catalog Grid -->
+      <section id="rooms-container" class="catalog-grid">
+        <div class="empty-state">
+          <div class="empty-icon">✨</div>
+          <h3>Connecting to Room Service through API Gateway...</h3>
+          <p style="color: var(--text-muted); margin-top: 6px;">Fetching luxury properties via GET /api/rooms</p>
+        </div>
+      </section>
+
+      <!-- Bottom Microservice & Live Stream Panels -->
+      <section class="bottom-panels">
+        <!-- Live WebSocket STOMP Stream -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="panel-title">
+              <span style="color: var(--accent-emerald);">⚡</span>
+              Real-time Event Stream (STOMP /ws-starlight)
+            </div>
+            <button id="btn-clear-events" class="btn btn-ghost btn-sm">Clear Feed</button>
+          </div>
+          <div class="event-feed" id="live-event-feed">
+            <div class="event-item" style="opacity: 0.7;">
+              <div class="event-item-head">
+                <span class="event-item-title" style="color: var(--accent-cyan);">Broker Connected</span>
+                <span class="event-item-time">Ready</span>
+              </div>
+              <div class="event-item-ref">Subscribed to destination: /topic/payments</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resilience4j & Service Discovery Panel -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="panel-title">
+              <span style="color: var(--accent-cyan);">🛡️</span>
+              Architecture & Circuit Breaker Health
+            </div>
+            <button id="btn-refresh-health" class="btn btn-ghost btn-sm">Ping Services</button>
+          </div>
+
+          <div class="cb-grid">
+            <div class="cb-item">
+              <div class="cb-item-name">Edge Router</div>
+              <div class="cb-item-val" style="color: var(--accent-emerald);">API Gateway (8080)</div>
+            </div>
+            <div class="cb-item">
+              <div class="cb-item-name">Circuit Breaker</div>
+              <div class="cb-item-val" style="color: var(--accent-cyan);">bookingCircuitBreaker</div>
+            </div>
+            <div class="cb-item">
+              <div class="cb-item-name">Fallback Route</div>
+              <div class="cb-item-val" style="font-family: monospace; font-size: 0.85rem;">/fallback/bookings (503)</div>
+            </div>
+            <div class="cb-item">
+              <div class="cb-item-name">Service Discovery</div>
+              <div class="cb-item-val" style="color: var(--accent-emerald);">Eureka (8761)</div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-top: 8px;">
+            <button id="btn-trigger-cb-test" class="btn btn-sm btn-secondary" style="flex: 1;">
+              Trigger Direct 503 Fallback
+            </button>
+            <button id="btn-trigger-amqp-test" class="btn btn-sm btn-primary" style="flex: 1;">
+              Dispatch AMQP Event
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Multi-Step Interactive Booking Modal -->
+    <div id="booking-modal" class="modal-backdrop hidden">
+      <div class="modal-content modal-lg">
+        <div class="modal-header">
+          <div>
+            <h3 id="modal-room-name">Reserve Celestial Stay</h3>
+            <span style="font-size: 0.76rem; color: var(--text-muted);">Transactional Microservices Saga Workflow</span>
+          </div>
+          <button id="btn-close-booking-modal" class="modal-close">&times;</button>
+        </div>
+
+        <!-- Step Indicator Bar -->
+        <div class="step-indicator-bar" style="margin-top: 20px;">
+          <div class="step-bubble active" id="step-bubble-1">
+            <div class="bubble-number">1</div>
+            <span class="bubble-label">Stay & Dates</span>
+          </div>
+          <div class="step-bubble" id="step-bubble-2">
+            <div class="bubble-number">2</div>
+            <span class="bubble-label">Guest Info</span>
+          </div>
+          <div class="step-bubble" id="step-bubble-3">
+            <div class="bubble-number">3</div>
+            <span class="bubble-label">Confirm Saga</span>
+          </div>
+        </div>
+
+        <form id="booking-form">
+          <input type="hidden" id="booking-room-id" />
+
+          <!-- STEP 1: Stay & Dates -->
+          <div id="booking-step-1" class="modal-body">
+            <div class="form-group">
+              <label class="form-label">Select Luxury Property</label>
+              <select id="booking-room-select" class="form-input">
+                <option value="">Loading suites from database...</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; background: rgba(255, 255, 255, 0.02); padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+              <div>
+                <span class="form-label" style="margin-bottom: 0;">Nightly Rate</span>
+                <span id="booking-property-badge" style="font-size: 0.78rem; color: var(--text-muted);">Signature Suite</span>
+              </div>
+              <div style="font-size: 1.25rem; font-weight: 800; color: var(--accent-cyan);" id="booking-rate-display">
+                $0.00 <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 400;">/ night</span>
+              </div>
+            </div>
+
+            <div class="date-grid">
+              <div class="form-group">
+                <label class="form-label">Check-In Date</label>
+                <input type="date" id="booking-checkin" class="form-input" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Check-Out Date</label>
+                <input type="date" id="booking-checkout" class="form-input" required />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Guest Count</label>
+              <select id="booking-guest-count" class="form-input">
+                <option value="1">1 Adult (Solo Traveler)</option>
+                <option value="2" selected>2 Adults (Couple / Double)</option>
+                <option value="3">3 Guests (Suite with Lounge)</option>
+                <option value="4">4 Guests (Family Suite)</option>
+                <option value="6">6 Guests (Presidential Estate Gathering)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- STEP 2: Guest Information & Pricing -->
+          <div id="booking-step-2" class="modal-body hidden">
+            <div class="form-group">
+              <label class="form-label">Lead Guest Full Name</label>
+              <input type="text" id="booking-guest-name" class="form-input" placeholder="e.g. Alice Vance" required />
+            </div>
+
+            <div class="date-grid">
+              <div class="form-group">
+                <label class="form-label">Email Address</label>
+                <input type="email" id="booking-guest-email" class="form-input" value="alice.vance@starlightstays.io" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Mobile Contact</label>
+                <input type="tel" id="booking-guest-phone" class="form-input" value="+1 (555) 019-2831" required />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">VIP Experience Add-on</label>
+              <select id="booking-vip-addon" class="form-input">
+                <option value="STANDARD">Standard Luxury Welcome (Complimentary)</option>
+                <option value="HELI">Private Heli-Pad Transfer ($350)</option>
+                <option value="ASTRONOMER">Starlight Telescope & Resident Astronomer ($200)</option>
+                <option value="CHEF">Private Michelin-Star Chef Dinner ($450)</option>
+              </select>
+            </div>
+
+            <!-- Dynamic Pricing Breakdown -->
+            <div class="pricing-breakdown">
+              <div class="price-row">
+                <span id="price-rate-calc">Nightly Rate x Nights</span>
+                <span id="price-subtotal">$0.00</span>
+              </div>
+              <div class="price-row">
+                <span>VIP Experience Add-on</span>
+                <span id="price-addon">$0.00</span>
+              </div>
+              <div class="price-row">
+                <span>Taxes & Celestial Resort Surcharge (12%)</span>
+                <span id="price-tax">$0.00</span>
+              </div>
+              <div class="price-row total-row">
+                <span>Estimated Total Bill</span>
+                <span id="price-grand-total">$0.00</span>
+              </div>
+            </div>
+
+            <!-- Chaos Test: Payment Failure & Compensating Saga Toggle -->
+            <div style="background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.4); border-radius: 8px; padding: 12px 14px; margin-top: 14px;">
+              <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: #fde68a; font-size: 0.85rem; font-weight: 600;">
+                <input type="checkbox" id="cb-simulate-decline" style="width: 16px; height: 16px; accent-color: #f59e0b;" />
+                <span>⚠️ Simulate Card Decline (Test Distributed Saga Rollback)</span>
+              </label>
+              <p style="font-size: 0.74rem; color: var(--text-muted); margin-top: 4px; margin-left: 26px; line-height: 1.3;">
+                When selected, Payment Service fails the transaction, triggers RabbitMQ <code>payment-failed-events</code>, and Booking Service automatically rolls back this booking to <code>CANCELLED_PAYMENT_FAILED</code>.
+              </p>
+            </div>
+          </div>
+
+          <!-- STEP 3: Review & Saga Trigger -->
+          <div id="booking-step-3" class="modal-body hidden">
+            <div class="pricing-breakdown" style="margin-top: 0; background: rgba(99, 102, 241, 0.05); border-color: rgba(99, 102, 241, 0.2);">
+              <div class="price-row">
+                <span style="color: var(--text-primary); font-weight: 700;" id="summary-property-title">Property</span>
+                <span id="summary-badge" class="badge-tag available">Available</span>
+              </div>
+              <div class="price-row">
+                <span>Reservation Dates:</span>
+                <strong id="summary-dates-display" style="color: #ffffff;">Dates</strong>
+              </div>
+              <div class="price-row">
+                <span>Guest Allocation:</span>
+                <strong id="summary-guests-display" style="color: #ffffff;">2 Guests</strong>
+              </div>
+              <div class="price-row">
+                <span>Primary Guest:</span>
+                <strong id="summary-name-display" style="color: #ffffff;">Alice Vance</strong>
+              </div>
+              <div class="price-row total-row">
+                <span>Total Authorization:</span>
+                <span id="summary-total-display">$0.00</span>
+              </div>
+            </div>
+
+            <!-- Saga Execution Flow Diagram -->
+            <div class="saga-flow-card">
+              <div class="saga-flow-title">
+                <span>⚡</span> Transactional Saga Execution
+              </div>
+              <div class="saga-pipeline-steps">
+                <div class="saga-step-pill">
+                  <span class="saga-step-icon">🏨</span>
+                  <span class="saga-step-name">1. Feign Check</span>
+                  <span style="font-size: 0.65rem; color: var(--text-muted);">Room Svc</span>
+                </div>
+                <div class="saga-step-pill">
+                  <span class="saga-step-icon">💾</span>
+                  <span class="saga-step-name">2. DB Persist</span>
+                  <span style="font-size: 0.65rem; color: var(--text-muted);">Booking Svc</span>
+                </div>
+                <div class="saga-step-pill">
+                  <span class="saga-step-icon">🐇</span>
+                  <span class="saga-step-name">3. AMQP Event</span>
+                  <span style="font-size: 0.65rem; color: var(--text-muted);">RabbitMQ</span>
+                </div>
+                <div class="saga-step-pill">
+                  <span class="saga-step-icon">💳</span>
+                  <span class="saga-step-name">4. STOMP Push</span>
+                  <span style="font-size: 0.65rem; color: var(--text-muted);">Payment Svc</span>
+                </div>
+              </div>
+            </div>
+
+            <div id="booking-conflict-alert" class="hidden" style="padding: 12px 14px; background: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.4); border-radius: 8px; color: #fda4af; font-size: 0.84rem; margin-top: 14px;">
+              ⚠️ <strong>409 Conflict:</strong> Room is unavailable for selected dates. Feign Client & Booking Service prevented double-booking!
+            </div>
+          </div>
+
+          <!-- Modal Navigation Footer -->
+          <div class="modal-footer">
+            <button type="button" id="btn-modal-prev" class="btn btn-secondary hidden">
+              ← Back
+            </button>
+            <button type="button" id="btn-cancel-booking" class="btn btn-ghost">
+              Cancel
+            </button>
+            <button type="button" id="btn-modal-next" class="btn btn-primary">
+              Continue to Guest Details →
+            </button>
+            <button type="submit" id="btn-submit-booking" class="btn btn-primary hidden">
+              ✨ Confirm Reservation & Dispatch Saga
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal-backdrop hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Starlight Stays Authentication</h3>
+          <button id="btn-close-login-modal" class="modal-close">&times;</button>
+        </div>
+        <form id="login-form">
+          <div class="modal-body">
+            <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 16px;">
+              Authenticate through the API Gateway (<code>POST /api/users/login</code>) to receive a signed JWT Bearer token.
+            </p>
+            
+            <div class="form-group">
+              <label class="form-label">Username</label>
+              <input type="text" id="login-username" class="form-input" value="admin" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Password</label>
+              <input type="password" id="login-password" class="form-input" value="password" required />
+            </div>
+
+            <div id="login-error-alert" class="hidden" style="padding: 10px 14px; background: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.4); border-radius: 8px; color: #fda4af; font-size: 0.84rem;">
+              Invalid credentials. Default demo credentials are admin / password.
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" id="btn-submit-login" class="btn btn-primary" style="width: 100%;">
+              Authenticate & Extract JWT
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- My Bookings Drawer / Modal -->
+    <div id="my-bookings-modal" class="modal-backdrop hidden">
+      <div class="modal-content" style="max-width: 680px;">
+        <div class="modal-header">
+          <div>
+            <h3 style="display: flex; align-items: center; gap: 8px;">
+              <span>🛎️</span> My Starlight Stays Reservations
+            </h3>
+            <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 2px;">
+              Manage and review your confirmed suites or cancel bookings.
+            </p>
+          </div>
+          <button id="btn-close-my-bookings-modal" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body" style="max-height: 480px; overflow-y: auto;">
+          <div id="my-bookings-loading" style="text-align: center; padding: 24px; color: var(--text-muted);">
+            Loading reservations from Booking Service...
+          </div>
+          <div id="my-bookings-empty" class="hidden" style="text-align: center; padding: 32px 16px;">
+            <div style="font-size: 2rem; margin-bottom: 8px;">🌌</div>
+            <h4 style="color: var(--text-primary); margin-bottom: 4px;">No Active Reservations</h4>
+            <p style="color: var(--text-muted); font-size: 0.85rem;">You have not booked any luxury suites yet.</p>
+          </div>
+          <div id="my-bookings-list" class="hidden" style="display: flex; flex-direction: column; gap: 12px;"></div>
+        </div>
+        <div class="modal-footer" style="justify-content: space-between;">
+          <button type="button" id="btn-refresh-my-bookings" class="btn btn-secondary btn-sm">
+            🔄 Refresh List
+          </button>
+          <button type="button" id="btn-close-my-bookings-footer" class="btn btn-ghost">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Shelf Container -->
+    <div id="toast-shelf"></div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: api-gateway
+  data:
+    redis:
+      host: redis
+      port: 6379
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+      - id: booking-service
+        uri: lb://BOOKING-SERVICE
+        predicates:
+        - Path=/api/bookings/**
+        filters:
+        - name: RequestRateLimiter
+          args:
+            redis-rate-limiter.replenishRate: 5
+            redis-rate-limiter.burstCapacity: 10
+            key-resolver: '#{@userKeyResolver}'
+        - name: CircuitBreaker
+          args:
+            name: bookingCircuitBreaker
+            fallbackUri: forward:/fallback/bookings
+      - id: room-service
+        uri: lb://ROOM-SERVICE
+        predicates:
+        - Path=/api/rooms/**
+      - id: user-service
+        uri: lb://USER-SERVICE
+        predicates:
+        - Path=/api/users/**
+      - id: payment-websocket
+        uri: lb:ws://PAYMENT-SERVICE
+        predicates:
+        - Path=/ws-starlight/**
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOriginPatterns: '*'
+            allowedMethods: '*'
+            allowedHeaders: '*'
+      default-filters:
+      - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials,
+        RETAIN_UNIQUE
+eureka:
+  client:
+    service-url:
+      defaultZone: http://discovery-server:8761/eureka/
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,circuitbreakers,circuitbreakersevents,prometheus
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://zipkin:9411/api/v2/spans

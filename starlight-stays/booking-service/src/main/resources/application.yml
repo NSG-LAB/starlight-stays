@@ -1,0 +1,49 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: booking-service
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+  config:
+    import: optional:configserver:http://config-server:8888
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+  cloud:
+    config:
+      uri: http://config-server:8888
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://discovery-server:8761/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,circuitbreakers,circuitbreakersevents,prometheus
+  health:
+    circuitbreakers:
+      enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://zipkin:9411/api/v2/spans
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      roomServiceCB:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50.0
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
