@@ -19,6 +19,7 @@ public class EventTestController {
         String message = "Booking Confirmed - Guest: AMQP Test User " + System.currentTimeMillis();
         // Convert and send directly to the default exchange, routing to our queue
         rabbitTemplate.convertAndSend("booking-events", message);
+        rabbitTemplate.convertAndSend("notification-booking-events", message);
         return ResponseEntity.ok("Event dispatched to RabbitMQ: " + message);
     }
 }

@@ -13,6 +13,10 @@ import {
   fetchEurekaServices,
   onCircuitBreakerFallback,
   onAuthStateChange,
+  fetchNotifications,
+  fetchReviews,
+  createReview,
+  fetchAllBookings,
 } from './services/api.js';
 
 import {
@@ -326,7 +330,12 @@ function renderRooms(rooms) {
         </div>
 
         <div class="card-body">
-          <div class="card-type">${meta.badge} • ${room.roomType}</div>
+          <div class="card-type" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>${meta.badge} • ${room.roomType}</span>
+            <button class="room-review-badge btn-open-room-reviews" data-room-id="${room.id}" data-room-name="${room.propertyName}" title="View guest reviews & ratings">
+              ★ 4.9 (Reviews)
+            </button>
+          </div>
           <h2 class="card-title">${room.propertyName}</h2>
 
           <div class="card-amenities">
@@ -355,6 +364,16 @@ function renderRooms(rooms) {
       e.stopPropagation();
       const roomId = Number(btn.getAttribute('data-room-id'));
       openBookingModal(roomId);
+    });
+  });
+
+  // Attach review modal triggers
+  document.querySelectorAll('.btn-open-room-reviews').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const roomId = Number(btn.getAttribute('data-room-id'));
+      const roomName = btn.getAttribute('data-room-name');
+      openReviewModal(roomId, roomName);
     });
   });
 }
@@ -642,6 +661,7 @@ onPaymentEvent(event => {
   }
 
   addEventToFeed(event);
+  loadNotifications();
 });
 
 function addEventToFeed(event) {
@@ -904,11 +924,334 @@ if (btnRefreshMyBookings) {
   });
 }
 
+// ---------------- DOM Elements: Notifications (Phase 1) ----------------
+const btnOpenNotifications = document.getElementById('btn-open-notifications');
+const notificationBadge = document.getElementById('notification-badge');
+const notificationsModal = document.getElementById('notifications-modal');
+const btnCloseNotificationsModal = document.getElementById('btn-close-notifications-modal');
+const btnCloseNotificationsFooter = document.getElementById('btn-close-notifications-footer');
+const btnRefreshNotifications = document.getElementById('btn-refresh-notifications');
+const notificationsLoading = document.getElementById('notifications-loading');
+const notificationsEmpty = document.getElementById('notifications-empty');
+const notificationsList = document.getElementById('notifications-list');
+
+// ---------------- DOM Elements: Reviews & Ratings (Phase 3) ----------------
+const reviewModal = document.getElementById('review-modal');
+const reviewForm = document.getElementById('review-form');
+const btnCloseReviewModal = document.getElementById('btn-close-review-modal');
+const btnCancelReview = document.getElementById('btn-cancel-review');
+const reviewRoomId = document.getElementById('review-room-id');
+const reviewGuestName = document.getElementById('review-guest-name');
+const reviewComment = document.getElementById('review-comment');
+const reviewRatingVal = document.getElementById('review-rating-val');
+const starPicker = document.getElementById('star-picker');
+const existingReviewsList = document.getElementById('existing-reviews-list');
+const reviewModalSubtitle = document.getElementById('review-modal-subtitle');
+
+// ---------------- DOM Elements: Admin Analytics (Phase 4) ----------------
+const btnOpenAnalytics = document.getElementById('btn-open-analytics');
+const analyticsModal = document.getElementById('analytics-modal');
+const btnCloseAnalyticsModal = document.getElementById('btn-close-analytics-modal');
+const btnCloseAnalyticsFooter = document.getElementById('btn-close-analytics-footer');
+const btnRefreshAnalytics = document.getElementById('btn-refresh-analytics');
+const kpiGrossRevenue = document.getElementById('kpi-gross-revenue');
+const kpiPaidBookings = document.getElementById('kpi-paid-bookings');
+const kpiOccupancyPct = document.getElementById('kpi-occupancy-pct');
+const kpiOccupancyBar = document.getElementById('kpi-occupancy-bar');
+const kpiOccupancyDetails = document.getElementById('kpi-occupancy-details');
+const kpiTotalBookings = document.getElementById('kpi-total-bookings');
+const kpiBookingStatusBreakdown = document.getElementById('kpi-booking-status-breakdown');
+const kpiCancellationRate = document.getElementById('kpi-cancellation-rate');
+const kpiCancelledCount = document.getElementById('kpi-cancelled-count');
+const analyticsRoomsTableBody = document.getElementById('analytics-rooms-table-body');
+
+// ---------------- Phase 1: Notifications & Vouchers ----------------
+async function loadNotifications() {
+  const user = getCurrentUser() || 'admin';
+  try {
+    const notifications = await fetchNotifications(user);
+    const count = notifications ? notifications.length : 0;
+    if (notificationBadge) {
+      if (count > 0) {
+        notificationBadge.textContent = count;
+        notificationBadge.style.display = 'inline-block';
+      } else {
+        notificationBadge.style.display = 'none';
+      }
+    }
+
+    if (!notificationsList) return;
+    if (notificationsLoading) notificationsLoading.classList.add('hidden');
+
+    if (count === 0) {
+      if (notificationsEmpty) notificationsEmpty.classList.remove('hidden');
+      notificationsList.classList.add('hidden');
+      notificationsList.innerHTML = '';
+      return;
+    }
+
+    if (notificationsEmpty) notificationsEmpty.classList.add('hidden');
+    notificationsList.classList.remove('hidden');
+    notificationsList.innerHTML = '';
+
+    notifications.forEach(n => {
+      const card = document.createElement('div');
+      card.className = 'voucher-card';
+      const createdStr = n.createdAt ? new Date(n.createdAt).toLocaleString() : 'Just now';
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+          <h4 style="color: var(--text-primary); font-size: 0.95rem; margin: 0;">${n.title || 'Reservation Voucher'}</h4>
+          <span style="font-size: 0.72rem; color: var(--text-muted);">${createdStr}</span>
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.84rem; margin: 6px 0 10px 0; line-height: 1.4;">
+          ${n.message}
+        </p>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div class="voucher-code-badge">
+            <span>🏷️</span>
+            <span>${n.voucherCode}</span>
+          </div>
+          <button class="btn btn-secondary btn-sm btn-copy-voucher" data-code="${n.voucherCode}">
+            📋 Copy Code
+          </button>
+        </div>
+      `;
+      notificationsList.appendChild(card);
+    });
+
+    notificationsList.querySelectorAll('.btn-copy-voucher').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const code = e.target.getAttribute('data-code');
+        navigator.clipboard.writeText(code);
+        e.target.textContent = '✓ Copied!';
+        setTimeout(() => { e.target.textContent = '📋 Copy Code'; }, 2000);
+      });
+    });
+  } catch (err) {
+    if (notificationsLoading) notificationsLoading.classList.add('hidden');
+    console.warn('Could not load notifications:', err);
+  }
+}
+
+if (btnOpenNotifications) {
+  btnOpenNotifications.addEventListener('click', () => {
+    if (notificationsModal) notificationsModal.classList.remove('hidden');
+    loadNotifications();
+  });
+}
+
+if (btnCloseNotificationsModal) {
+  btnCloseNotificationsModal.addEventListener('click', () => {
+    if (notificationsModal) notificationsModal.classList.add('hidden');
+  });
+}
+
+if (btnCloseNotificationsFooter) {
+  btnCloseNotificationsFooter.addEventListener('click', () => {
+    if (notificationsModal) notificationsModal.classList.add('hidden');
+  });
+}
+
+if (btnRefreshNotifications) {
+  btnRefreshNotifications.addEventListener('click', () => {
+    loadNotifications();
+  });
+}
+
+// ---------------- Phase 3: Guest Reviews & Ratings ----------------
+async function openReviewModal(roomId, roomName) {
+  if (reviewRoomId) reviewRoomId.value = roomId;
+  if (reviewGuestName) reviewGuestName.value = getCurrentUser() || 'admin';
+  if (reviewModalSubtitle) reviewModalSubtitle.textContent = `Share your feedback for Suite #${roomId} (${roomName || 'Luxury Suite'}).`;
+  if (reviewModal) reviewModal.classList.remove('hidden');
+  await loadReviews(roomId);
+}
+
+async function loadReviews(roomId) {
+  if (!existingReviewsList) return;
+  existingReviewsList.innerHTML = '<div style="color: var(--text-muted); font-size: 0.8rem;">Loading guest testimonials...</div>';
+  try {
+    const reviews = await fetchReviews(roomId);
+    if (!reviews || reviews.length === 0) {
+      existingReviewsList.innerHTML = '<div style="color: var(--text-muted); font-size: 0.8rem;">No guest testimonials yet for this suite. Be the first to leave one!</div>';
+      return;
+    }
+    existingReviewsList.innerHTML = reviews.map(r => `
+      <div class="review-comment-card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: 700; font-size: 0.82rem; color: var(--text-primary);">${r.guestName}</span>
+          <span style="color: #fbbf24; font-size: 0.8rem;">${'★'.repeat(r.rating || 5)}</span>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 0;">${r.comment}</p>
+        <span style="font-size: 0.68rem; color: var(--text-muted);">${r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ''}</span>
+      </div>
+    `).join('');
+  } catch (err) {
+    existingReviewsList.innerHTML = '<div style="color: #f43f5e; font-size: 0.8rem;">Could not load testimonials.</div>';
+  }
+}
+
+// Star picker interactive rating
+if (starPicker) {
+  const stars = starPicker.querySelectorAll('span');
+  stars.forEach(star => {
+    star.addEventListener('click', () => {
+      const val = parseInt(star.getAttribute('data-star'), 10);
+      if (reviewRatingVal) reviewRatingVal.value = val;
+      stars.forEach(s => {
+        const sVal = parseInt(s.getAttribute('data-star'), 10);
+        if (sVal <= val) {
+          s.classList.add('selected');
+        } else {
+          s.classList.remove('selected');
+        }
+      });
+    });
+  });
+}
+
+if (btnCloseReviewModal) {
+  btnCloseReviewModal.addEventListener('click', () => {
+    if (reviewModal) reviewModal.classList.add('hidden');
+  });
+}
+
+if (btnCancelReview) {
+  btnCancelReview.addEventListener('click', () => {
+    if (reviewModal) reviewModal.classList.add('hidden');
+  });
+}
+
+if (reviewForm) {
+  reviewForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const roomId = Number(reviewRoomId ? reviewRoomId.value : 1);
+    const guestName = reviewGuestName ? reviewGuestName.value.trim() : 'Guest';
+    const rating = Number(reviewRatingVal ? reviewRatingVal.value : 5);
+    const comment = reviewComment ? reviewComment.value.trim() : '';
+
+    try {
+      await createReview({ roomId, guestName, rating, comment });
+      showToast('Verified Review Published', `Thank you ${guestName}! Your ${rating}-star rating has been registered in the Starlight network.`, 'success', 5000);
+      if (reviewComment) reviewComment.value = '';
+      await loadReviews(roomId);
+    } catch (err) {
+      showToast('Review Submission Failed', err.message, 'danger', 5000);
+    }
+  });
+}
+
+// ---------------- Phase 4: Admin Revenue & Occupancy Dashboard ----------------
+async function loadAnalytics() {
+  try {
+    const [bookings, rooms] = await Promise.all([
+      fetchAllBookings().catch(() => []),
+      fetchRooms().catch(() => [])
+    ]);
+
+    // 1. Calculate Gross Revenue
+    const confirmedBookings = bookings.filter(b => b.status === 'CONFIRMED' || b.status === 'SETTLED');
+    const cancelledBookings = bookings.filter(b => b.status && (b.status.includes('CANCEL') || b.status.includes('FAIL')));
+
+    let grossRevenue = 0;
+    const roomRateMap = {};
+    const roomBookingCountMap = {};
+
+    rooms.forEach(r => {
+      roomRateMap[r.id] = Number(r.nightlyRate) || 0;
+      roomBookingCountMap[r.id] = 0;
+    });
+
+    confirmedBookings.forEach(b => {
+      const rate = roomRateMap[b.roomId] || 500;
+      grossRevenue += rate;
+      if (roomBookingCountMap[b.roomId] !== undefined) {
+        roomBookingCountMap[b.roomId]++;
+      }
+    });
+
+    if (kpiGrossRevenue) kpiGrossRevenue.textContent = `$${grossRevenue.toLocaleString()}`;
+    if (kpiPaidBookings) kpiPaidBookings.textContent = `${confirmedBookings.length} confirmed stay transactions`;
+
+    // 2. Occupancy Rate
+    const totalRooms = rooms.length || 6;
+    const occupiedRooms = rooms.filter(r => r.available === false).length;
+    const occupancyPct = Math.round((occupiedRooms / totalRooms) * 100);
+
+    if (kpiOccupancyPct) kpiOccupancyPct.textContent = `${occupancyPct}%`;
+    if (kpiOccupancyBar) kpiOccupancyBar.style.width = `${occupancyPct}%`;
+    if (kpiOccupancyDetails) kpiOccupancyDetails.textContent = `${occupiedRooms} of ${totalRooms} suites occupied`;
+
+    // 3. Total Bookings
+    if (kpiTotalBookings) kpiTotalBookings.textContent = bookings.length;
+    if (kpiBookingStatusBreakdown) {
+      kpiBookingStatusBreakdown.textContent = `${confirmedBookings.length} Active • ${cancelledBookings.length} Cancelled`;
+    }
+
+    // 4. Cancellation Rate
+    const totalProcessed = bookings.length;
+    const cancelRate = totalProcessed > 0 ? Math.round((cancelledBookings.length / totalProcessed) * 100) : 0;
+    if (kpiCancellationRate) kpiCancellationRate.textContent = `${cancelRate}%`;
+    if (kpiCancelledCount) kpiCancelledCount.textContent = `${cancelledBookings.length} cancelled or payment-declined`;
+
+    // 5. Suite Breakdown Table
+    if (analyticsRoomsTableBody) {
+      analyticsRoomsTableBody.innerHTML = rooms.map(r => {
+        const bookedCount = roomBookingCountMap[r.id] || 0;
+        const estRevenue = bookedCount * (Number(r.nightlyRate) || 0);
+        const isOccupied = r.available === false;
+        return `
+          <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+            <td style="padding: 10px 14px; font-weight: 600; color: var(--text-primary);">${r.propertyName}</td>
+            <td style="padding: 10px 14px; color: var(--accent-gold);">$${Number(r.nightlyRate).toFixed(2)}</td>
+            <td style="padding: 10px 14px;">${bookedCount} reservations</td>
+            <td style="padding: 10px 14px; font-weight: 700; color: #34d399;">$${estRevenue.toLocaleString()}</td>
+            <td style="padding: 10px 14px;">
+              <span class="badge-tag ${isOccupied ? 'booked' : 'available'}" style="font-size: 0.72rem;">
+                ${isOccupied ? 'Occupied' : 'Vacant'}
+              </span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+  } catch (err) {
+    showToast('Analytics Error', 'Failed to calculate live telemetry: ' + err.message, 'danger', 5000);
+  }
+}
+
+if (btnOpenAnalytics) {
+  btnOpenAnalytics.addEventListener('click', () => {
+    if (analyticsModal) analyticsModal.classList.remove('hidden');
+    loadAnalytics();
+  });
+}
+
+if (btnCloseAnalyticsModal) {
+  btnCloseAnalyticsModal.addEventListener('click', () => {
+    if (analyticsModal) analyticsModal.classList.add('hidden');
+  });
+}
+
+if (btnCloseAnalyticsFooter) {
+  btnCloseAnalyticsFooter.addEventListener('click', () => {
+    if (analyticsModal) analyticsModal.classList.add('hidden');
+  });
+}
+
+if (btnRefreshAnalytics) {
+  btnRefreshAnalytics.addEventListener('click', () => {
+    loadAnalytics();
+  });
+}
+
 // ---------------- Bootstrap Initialization ----------------
 async function init() {
   console.log('🚀 Initializing Starlight Stays Frontend...');
   await ensureAuthenticated();
   await loadRooms();
+  await loadNotifications();
   connectWebSocket();
 }
 

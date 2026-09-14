@@ -75,16 +75,22 @@ graph TD
 
 | Service | Port / URL | Credentials | Role |
 | :--- | :--- | :--- | :--- |
-| **Vite SPA Frontend** | `http://localhost:5173/` | — | Reactive luxury dashboard & booking drawer |
+| **Vite SPA Frontend** | `http://localhost:5173/` | — | Reactive luxury dashboard, vouchers, reviews & KPI analytics |
 | **API Gateway** | `http://localhost:8080/` | Bearer JWT | Central reverse proxy & auth filter |
 | **Eureka Discovery** | `http://localhost:8761/` | — | Service mesh registry |
 | **Config Server** | `http://localhost:8888/` | — | Centralized Git property management |
+| **User Service** | `http://localhost:8081/` | `admin` / `password` | Authentication & RBAC profiles |
+| **Room Service** | `http://localhost:8082/` | — | Catalog & Redis distributed caching |
+| **Booking Service** | `http://localhost:8083/` | — | Saga orchestrator & availability engine |
+| **Payment Service** | `http://localhost:8084/` | — | Transaction ledger & WebSocket broadcasts |
+| **Notification Service** | `http://localhost:8085/` | — | AMQP pub-sub consumer & VIP digital vouchers |
+| **Review Service** | `http://localhost:8086/` | — | Verified guest ratings (1–5★) & reviews |
 | **Distributed Tracing (Zipkin)** | `http://localhost:9411/` | — | Trace timeline visualizer |
-| **Metrics (Prometheus)** | `http://localhost:9090/targets` | — | 5/5 microservice scrape targets |
+| **Metrics (Prometheus)** | `http://localhost:9090/targets` | — | Actively scraping all microservices |
 | **Dashboards (Grafana)** | `http://localhost:3030/` | `admin` / `admin` | Mesh throughput, p95 latency, circuit breakers |
 | **Centralized Logs (Kibana)**| `http://localhost:5601/` | — | Search structured `starlight-logs-*` |
 | **RabbitMQ Management** | `http://localhost:15672/` | `guest` / `guest` | AMQP exchanges and queues |
-| **PostgreSQL Database** | `localhost:5432` | `postgres` / `password` | 4 isolated schemas |
+| **PostgreSQL Database** | `localhost:5432` | `postgres` / `password` | 6 isolated database schemas |
 | **Redis Cache** | `localhost:6379` | — | Room catalog distributed cache |
 
 **Demo Account**:
@@ -96,7 +102,7 @@ graph TD
 ## 4. Quick Start & Execution
 
 ### One-Click Launch
-Start the entire 16-container platform, verify dependencies, and launch the frontend with a single command:
+Start the entire 18-container platform, verify dependencies, and launch the frontend with a single command:
 ```bash
 ./start-all.sh
 ```
@@ -111,13 +117,13 @@ Gracefully terminate all background servers and Docker containers:
 
 ## 5. Automated Verification & Testing
 
-Execute the comprehensive 8-suite automated test covering infrastructure, JWT security, catalog lookups, saga transactions, compensating rollbacks, cancellations, circuit breakers, and observability:
+Execute the comprehensive 10-suite automated test covering infrastructure, JWT security, catalog lookups, saga transactions, compensating rollbacks, cancellations, circuit breakers, observability, notification vouchers, and guest reviews:
 
 ```bash
 bash "starlight-stays/comprehensive-system-test.sh"
 ```
 
-**Test Suite Coverage (18 / 18 Tests Passing)**:
+**Test Suite Coverage (21 / 21 Tests Passing — 100% Pass Rate)**:
 - `SUITE 1`: Eureka, Config Server, Gateway, and Vite reachability.
 - `SUITE 2`: JWT login, authenticated profile access, unauthenticated request rejection.
 - `SUITE 3`: PostgreSQL seeded suites and single room lookups.
@@ -125,5 +131,17 @@ bash "starlight-stays/comprehensive-system-test.sh"
 - `SUITE 5`: Two-way compensating saga rollback to `CANCELLED_PAYMENT_FAILED` and immediate suite date release.
 - `SUITE 6`: User booking query and self-service reservation cancellation (`PUT /cancel`).
 - `SUITE 7`: Resilience4j circuit breaker fallback degradation.
-- `SUITE 8`: Prometheus scraper health (5/5 UP) and Logstash Elasticsearch indexing.
-# starlight-stays
+- `SUITE 8`: Prometheus scraper health (targets UP) and Logstash Elasticsearch indexing.
+- `SUITE 9`: Notification Service & VIP digital voucher issuance via AMQP fanout.
+- `SUITE 10`: Guest Reviews & Ratings Service (public read access & authenticated POST).
+
+---
+
+## 6. Continuous Integration & Deployment (CI/CD)
+
+The repository includes a production-grade GitHub Actions workflow (`.github/workflows/ci.yml`) triggering on pushes and pull requests:
+- **Backend Build**: Compiles all 9 microservices in parallel with Temurin JDK 17 and caches dependencies.
+- **Frontend Build**: Builds the modern Vite SPA production bundle.
+- **Mesh Validation**: Lints and validates `docker-compose.yml` service definitions.
+- **Script Audit**: Syntax checks all operational bash orchestration scripts (`bash -n`).
+

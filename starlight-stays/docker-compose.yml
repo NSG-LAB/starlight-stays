@@ -201,3 +201,29 @@ services:
       discovery-server:
         condition: service_started
     restart: always
+
+  notification-service:
+    build: ./notification-service
+    container_name: notification-service
+    ports:
+      - "8085:8085"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      discovery-server:
+        condition: service_started
+    restart: always
+
+  review-service:
+    build: ./review-service
+    container_name: review-service
+    ports:
+      - "8086:8086"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+    restart: always

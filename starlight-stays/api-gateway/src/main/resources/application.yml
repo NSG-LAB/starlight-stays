@@ -40,6 +40,14 @@ spring:
         uri: lb:ws://PAYMENT-SERVICE
         predicates:
         - Path=/ws-starlight/**
+      - id: notification-service
+        uri: lb://NOTIFICATION-SERVICE
+        predicates:
+        - Path=/api/notifications/**
+      - id: review-service
+        uri: lb://REVIEW-SERVICE
+        predicates:
+        - Path=/api/reviews/**
       globalcors:
         corsConfigurations:
           '[/**]':

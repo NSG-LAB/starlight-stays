@@ -1168,6 +1168,192 @@ h1, h2, h3, h4, h5, h6 {
   display: none !important;
 }
 
+/* ---------------- Notifications & Vouchers ---------------- */
+.badge-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: linear-gradient(135deg, #f43f5e, #e11d48);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.voucher-card {
+  background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.95));
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.voucher-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(245, 158, 11, 0.8);
+}
+
+.voucher-card::before {
+  content: "VIP PASS";
+  position: absolute;
+  top: 10px;
+  right: -25px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #1e1b4b;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 28px;
+  transform: rotate(45deg);
+  letter-spacing: 0.05em;
+}
+
+.voucher-code-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px dashed #f59e0b;
+  color: #fde68a;
+  font-family: monospace;
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 6px;
+  margin-top: 8px;
+}
+
+/* ---------------- Reviews & Star Ratings ---------------- */
+.room-review-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 9999px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.room-review-badge:hover {
+  background: rgba(245, 158, 11, 0.25);
+}
+
+.star-rating-select {
+  display: flex;
+  gap: 6px;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.star-rating-select span {
+  color: #475569;
+  transition: color 0.15s, transform 0.15s;
+}
+
+.star-rating-select span.selected,
+.star-rating-select span:hover,
+.star-rating-select span.hovered {
+  color: #fbbf24;
+  transform: scale(1.15);
+}
+
+.review-comment-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ---------------- Admin Analytics Dashboard ---------------- */
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.kpi-card {
+  background: linear-gradient(145deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.9));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #6366f1, #38bdf8);
+}
+
+.kpi-card.kpi-revenue::after {
+  background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.kpi-card.kpi-occupancy::after {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.kpi-card.kpi-alerts::after {
+  background: linear-gradient(90deg, #f43f5e, #fb7185);
+}
+
+.kpi-title {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.kpi-value {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.kpi-sub {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 6px;
+}
+
+.progress-bar-wrap {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.5s ease-in-out;
+}
+
 /* Responsive adjustments */
 @media (max-width: 900px) {
   .hero {

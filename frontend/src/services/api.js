@@ -257,7 +257,51 @@ export async function testInternalCircuitBreaker() {
   return response.text();
 }
 
-// 6. Discovery Server Health
+// 6. Notifications & Vouchers (Phase 1)
+export async function fetchNotifications(guestName = 'admin') {
+  const response = await apiRequest(`/api/notifications/user/${encodeURIComponent(guestName)}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch notifications');
+  }
+  return response.json();
+}
+
+// 7. Guest Reviews & Ratings (Phase 3)
+export async function fetchReviews(roomId) {
+  const response = await apiRequest(`/api/reviews/room/${roomId}`);
+  if (!response.ok) {
+    return [];
+  }
+  return response.json();
+}
+
+export async function createReview({ roomId, guestName, rating, comment }) {
+  const response = await apiRequest('/api/reviews', {
+    method: 'POST',
+    body: {
+      roomId: Number(roomId),
+      guestName,
+      rating: Number(rating),
+      comment
+    }
+  });
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(err || 'Failed to submit review');
+  }
+  return response.json();
+}
+
+// 8. Admin Analytics & All Bookings (Phase 4)
+export async function fetchAllBookings() {
+  const response = await apiRequest('/api/bookings');
+  if (!response.ok) {
+    throw new Error('Failed to fetch all bookings');
+  }
+  return response.json();
+}
+
+// 9. Discovery Server Health
 export async function fetchEurekaServices() {
   try {
     const res = await fetch(`${EUREKA_BASE}/eureka/apps`, {

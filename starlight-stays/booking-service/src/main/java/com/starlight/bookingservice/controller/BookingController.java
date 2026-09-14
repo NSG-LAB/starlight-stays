@@ -91,7 +91,8 @@ public class BookingController {
                     simulateFailure
                 );
                 rabbitTemplate.convertAndSend("booking-events", eventMessage);
-                log.info("Dispatched booking event to RabbitMQ [booking-events]: {}", eventMessage);
+                rabbitTemplate.convertAndSend("notification-booking-events", eventMessage);
+                log.info("Dispatched booking event to RabbitMQ [booking-events & notification-booking-events]: {}", eventMessage);
             } catch (Exception e) {
                 log.error("RabbitMQ event dispatch failed: {}. Continuing with confirmed booking.", e.getMessage());
             }

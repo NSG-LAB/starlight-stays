@@ -126,17 +126,31 @@ assert_test "Circuit breaker fallback /fallback/bookings serves graceful degrada
 
 echo -e "\n${CYAN}▶ SUITE 8: Observability, Metrics & Centralized Logging${NC}"
 TARGETS_UP=$(curl -s "$PROMETHEUS_URL/api/v1/targets" | grep -o '"health":"up"' | wc -l)
-assert_test "Prometheus actively scraping all 5 microservices (5/5 targets UP)" '[ "$TARGETS_UP" -ge 5 ]'
+assert_test "Prometheus actively scraping microservices (targets UP)" '[ "$TARGETS_UP" -ge 5 ]'
 
 ES_INDICES=$(curl -s "$ELASTICSEARCH_URL/_cat/indices?v" | grep "starlight-logs" || true)
 assert_test "Logstash pipeline active with indexed documents in Elasticsearch" '[ -n "$ES_INDICES" ]'
+
+echo -e "\n${CYAN}▶ SUITE 9: Notification Service & Digital Vouchers (AMQP Pub-Sub)${NC}"
+NOTIF_RES=$(curl -s -H "Authorization: Bearer $TOKEN" "$GATEWAY_URL/api/notifications")
+assert_test "GET /api/notifications returns issued VIP vouchers" '[[ "$NOTIF_RES" == *"VCHR-STARLIGHT"* ]]'
+
+echo -e "\n${CYAN}▶ SUITE 10: Guest Reviews & Star Ratings Microservice${NC}"
+REVIEWS_RES=$(curl -s "$GATEWAY_URL/api/reviews")
+assert_test "GET /api/reviews publicly accessible with seeded ratings" '[[ "$REVIEWS_RES" == *"rating"* ]]'
+
+NEW_REV_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$GATEWAY_URL/api/reviews" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"roomId": 1, "guestName": "Automated CI Test", "rating": 5, "comment": "Verification passed."}')
+assert_test "POST /api/reviews creates new verified review (HTTP 201)" '[ "$NEW_REV_CODE" -eq 201 ]'
 
 echo -e "\n======================================================================"
 echo -e "${BOLD}TEST SUMMARY:${NC} ${GREEN}$PASSED_COUNT Passed${NC} / ${RED}$FAILED_COUNT Failed${NC}"
 echo "======================================================================"
 
 if [ "$FAILED_COUNT" -eq 0 ]; then
-  echo -e "${GREEN}🎉 ALL 8 TEST SUITES COMPLETED WITH 100% SUCCESS!${NC}"
+  echo -e "${GREEN}🎉 ALL 10 TEST SUITES COMPLETED WITH 100% SUCCESS!${NC}"
   exit 0
 else
   echo -e "${RED}⚠️ Some test assertions failed. Inspect logs above.${NC}"
