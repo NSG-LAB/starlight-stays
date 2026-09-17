@@ -144,6 +144,7 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 800;
   background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #818cf8 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   display: flex;
   flex-direction: column;
@@ -430,6 +431,7 @@ h1, h2, h3, h4, h5, h6 {
 .hero-title span {
   background: var(--grad-aurora);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 

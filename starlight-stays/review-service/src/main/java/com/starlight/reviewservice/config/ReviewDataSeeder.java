@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.List;
 
 @Configuration
+@SuppressWarnings("null")
 public class ReviewDataSeeder implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(ReviewDataSeeder.class);

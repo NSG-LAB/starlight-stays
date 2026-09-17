@@ -5,6 +5,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.3.3</version>
+        <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.starlight</groupId>
     <artifactId>api-gateway</artifactId>

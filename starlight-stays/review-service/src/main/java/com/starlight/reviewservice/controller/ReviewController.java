@@ -12,6 +12,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/reviews")
+@SuppressWarnings("null")
 public class ReviewController {
 
     private final ReviewRepository reviewRepository;
@@ -40,7 +41,11 @@ public class ReviewController {
         if (reviews.isEmpty()) {
             stats.put("averageRating", 5.0);
         } else {
-            double avg = reviews.stream().mapToInt(Review::getRating).average().orElse(5.0);
+            double avg = reviews.stream()
+                    .filter(r -> r != null && r.getRating() != null)
+                    .mapToInt(Review::getRating)
+                    .average()
+                    .orElse(5.0);
             stats.put("averageRating", Math.round(avg * 10.0) / 10.0);
         }
         return stats;
