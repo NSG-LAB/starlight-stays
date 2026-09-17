@@ -7,4 +7,5 @@ import java.util.List;
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
     List<Notification> findByGuestNameContainingIgnoreCaseOrderByCreatedAtDesc(String guestName);
     List<Notification> findAllByOrderByCreatedAtDesc();
+    java.util.Optional<Notification> findByBookingId(Long bookingId);
 }

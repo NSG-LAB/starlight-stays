@@ -17,6 +17,9 @@ public class Notification implements Serializable {
     private Long bookingId;
     private String guestName;
     private String voucherCode;
+    private String roomName;
+    private Double totalPrice;
+    private String securityHash;
     private String title;
     
     @Column(length = 1000)
@@ -48,6 +51,15 @@ public class Notification implements Serializable {
 
     public String getVoucherCode() { return voucherCode; }
     public void setVoucherCode(String voucherCode) { this.voucherCode = voucherCode; }
+
+    public String getRoomName() { return roomName; }
+    public void setRoomName(String roomName) { this.roomName = roomName; }
+
+    public Double getTotalPrice() { return totalPrice; }
+    public void setTotalPrice(Double totalPrice) { this.totalPrice = totalPrice; }
+
+    public String getSecurityHash() { return securityHash; }
+    public void setSecurityHash(String securityHash) { this.securityHash = securityHash; }
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }

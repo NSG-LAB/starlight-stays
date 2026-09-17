@@ -333,3 +333,126 @@ export async function fetchEurekaServices() {
     return null;
   }
 }
+
+// 11. Luxury Add-ons & VIP Experiences (Phase 2)
+export async function fetchAddons() {
+  const response = await apiRequest('/api/addons');
+  if (!response.ok) {
+    throw new Error('Failed to load add-on experiences');
+  }
+  return response.json();
+}
+
+export async function attachAddon({ bookingId, addonCode, quantity = 1, specialRequests = '' }) {
+  const response = await apiRequest('/api/addons/attach', {
+    method: 'POST',
+    body: {
+      bookingId: Number(bookingId),
+      addonCode,
+      quantity: Number(quantity),
+      specialRequests
+    }
+  });
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(err || 'Failed to attach add-on experience');
+  }
+  return response.json();
+}
+
+export async function fetchBookingAddons(bookingId) {
+  const response = await apiRequest(`/api/addons/booking/${bookingId}`);
+  if (!response.ok) {
+    return { addons: [], totalAddonsCost: 0 };
+  }
+  return response.json();
+}
+
+// 12. Real-Time VIP Concierge Live Chat (Phase 1)
+export async function fetchChatHistory(channelId) {
+  const response = await apiRequest(`/api/chat/history/${encodeURIComponent(channelId)}`);
+  if (!response.ok) {
+    return [];
+  }
+  return response.json();
+}
+
+export async function sendChatMessage({ channelId, sender, content, senderRole = 'GUEST' }) {
+  const response = await apiRequest('/api/chat/send', {
+    method: 'POST',
+    body: {
+      channelId,
+      sender,
+      content,
+      senderRole
+    }
+  });
+  if (!response.ok) {
+    throw new Error('Failed to dispatch message');
+  }
+  return response.json();
+}
+
+// 13. Download Official Luxury PDF Voucher (Phase 3)
+export async function downloadVoucherPdf(bookingId) {
+  const token = getToken();
+  const url = `${GATEWAY_BASE}/api/notifications/pdf/${bookingId}`;
+  const response = await fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
+  });
+  if (!response.ok) {
+    throw new Error('Failed to generate official PDF voucher');
+  }
+  const blob = await response.blob();
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = downloadUrl;
+  a.download = `Starlight-Voucher-${bookingId}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(downloadUrl);
+}
+
+// 14. OAuth2 / Social SSO & 2FA (Phase 4)
+export async function socialLogin({ provider = 'Google', email = 'guest.vip@starlightstays.luxury', name = 'VIP Resident' } = {}) {
+  const response = await fetch(`${GATEWAY_BASE}/api/users/oauth2/sso`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider, email, name })
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(err || 'Social SSO failed');
+  }
+
+  const data = await response.json();
+  if (data.token) {
+    setSession(data.token, data.username || email.split('@')[0]);
+  }
+  return data;
+}
+
+export async function setup2FA(username = 'admin') {
+  const response = await apiRequest(`/api/users/2fa/setup?username=${encodeURIComponent(username)}`, {
+    method: 'POST'
+  });
+  if (!response.ok) {
+    throw new Error('Failed to initialize 2FA');
+  }
+  return response.json();
+}
+
+export async function verify2FA({ username = 'admin', code }) {
+  const response = await apiRequest('/api/users/2fa/verify', {
+    method: 'POST',
+    body: { username, code }
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: 'Verification failed' }));
+    throw new Error(err.error || 'Invalid 2FA code');
+  }
+  return response.json();
+}
+

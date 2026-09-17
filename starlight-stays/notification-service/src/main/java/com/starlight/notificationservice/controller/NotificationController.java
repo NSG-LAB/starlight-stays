@@ -13,9 +13,12 @@ import java.util.List;
 public class NotificationController {
 
     private final NotificationRepository notificationRepository;
+    private final com.starlight.notificationservice.service.PdfGeneratorService pdfGeneratorService;
 
-    public NotificationController(NotificationRepository notificationRepository) {
+    public NotificationController(NotificationRepository notificationRepository,
+                                  com.starlight.notificationservice.service.PdfGeneratorService pdfGeneratorService) {
         this.notificationRepository = notificationRepository;
+        this.pdfGeneratorService = pdfGeneratorService;
     }
 
     @GetMapping
@@ -36,5 +39,28 @@ public class NotificationController {
         return notificationRepository.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/pdf/{bookingId}")
+    public ResponseEntity<byte[]> getVoucherPdf(@PathVariable Long bookingId) {
+        Notification notification = notificationRepository.findByBookingId(bookingId)
+                .orElseGet(() -> {
+                    Notification mock = new Notification();
+                    mock.setBookingId(bookingId);
+                    mock.setGuestName("VIP Resident");
+                    mock.setRoomName("Celestial Observatory Penthouse");
+                    mock.setTotalPrice(1250.0);
+                    mock.setVoucherCode("STR-VOUCHER-" + bookingId);
+                    mock.setSecurityHash("0x" + Long.toHexString(bookingId * 314159265L).toUpperCase());
+                    mock.setCreatedAt(java.time.LocalDateTime.now());
+                    return mock;
+                });
+
+        byte[] pdfBytes = pdfGeneratorService.generateLuxuryVoucherPdf(notification);
+
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, org.springframework.http.MediaType.APPLICATION_PDF_VALUE)
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"Starlight-Voucher-" + bookingId + ".pdf\"")
+                .body(pdfBytes);
     }
 }

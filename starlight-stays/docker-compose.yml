@@ -94,6 +94,14 @@ services:
       - prometheus
     restart: always
 
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    restart: always
+
   zipkin:
     image: openzipkin/zipkin:latest
     container_name: zipkin
@@ -241,3 +249,28 @@ services:
       discovery-server:
         condition: service_started
     restart: always
+
+  chat-service:
+    build: ./chat-service
+    container_name: chat-service
+    ports:
+      - "8088:8088"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+    restart: always
+
+  addon-service:
+    build: ./addon-service
+    container_name: addon-service
+    ports:
+      - "8089:8089"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+    restart: always
+

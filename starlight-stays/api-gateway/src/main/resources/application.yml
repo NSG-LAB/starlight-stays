@@ -52,6 +52,18 @@ spring:
         uri: lb://CONCIERGE-SERVICE
         predicates:
         - Path=/api/concierge/**
+      - id: chat-service
+        uri: lb://CHAT-SERVICE
+        predicates:
+        - Path=/api/chat/**
+      - id: chat-websocket
+        uri: lb:ws://CHAT-SERVICE
+        predicates:
+        - Path=/ws-chat/**
+      - id: addon-service
+        uri: lb://ADDON-SERVICE
+        predicates:
+        - Path=/api/addons/**
       globalcors:
         corsConfigurations:
           '[/**]':

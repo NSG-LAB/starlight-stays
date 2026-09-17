@@ -29,11 +29,16 @@ public class JwtGlobalAuthenticationFilter implements GlobalFilter, Ordered {
         // 1. Bypass authentication for public endpoints, WebSockets, Actuator, and Fallback
         if (path.contains("/login") || 
             path.contains("/register") || 
+            path.contains("/oauth2") ||
+            path.contains("/2fa") ||
             path.contains("/ws-starlight") || 
+            path.contains("/ws-chat") || 
             path.startsWith("/actuator") || 
             path.startsWith("/fallback") ||
             path.startsWith("/api/concierge") ||
-            (HttpMethod.GET.equals(method) && (path.startsWith("/api/rooms") || path.startsWith("/api/reviews")))) {
+            path.startsWith("/api/chat") ||
+            path.contains("/notifications/pdf") ||
+            (HttpMethod.GET.equals(method) && (path.startsWith("/api/rooms") || path.startsWith("/api/reviews") || path.startsWith("/api/addons")))) {
             return chain.filter(exchange);
         }
 

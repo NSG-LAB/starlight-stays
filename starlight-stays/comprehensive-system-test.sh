@@ -154,12 +154,47 @@ REC_RES=$(curl -s -X POST "$GATEWAY_URL/api/concierge/recommend" \
   -d '{"travelStyle": "OCEANIC", "guestCount": 2, "budgetPreference": "PREMIUM"}')
 assert_test "POST /api/concierge/recommend generates confidence score & itinerary" '[[ "$REC_RES" == *"confidenceScore"* ]] && [[ "$REC_RES" == *"curatedThreeDayItinerary"* ]]'
 
+echo -e "\n${CYAN}▶ SUITE 12: Real-Time VIP Concierge Live Chat Microservice (8088)${NC}"
+CHAT_SEND_RES=$(curl -s -X POST "$GATEWAY_URL/api/chat/send" \
+  -H "Content-Type: application/json" \
+  -d '{"channelId": "ci-test-channel", "sender": "CI Runner", "senderRole": "GUEST", "content": "Can you prepare vintage champagne on arrival?"}')
+assert_test "POST /api/chat/send dispatches guest message to broker" '[[ "$CHAT_SEND_RES" == *"ci-test-channel"* ]]'
+
+sleep 1
+CHAT_HIST_RES=$(curl -s "$GATEWAY_URL/api/chat/history/ci-test-channel")
+assert_test "GET /api/chat/history retrieves AI Butler auto-response" '[[ "$CHAT_HIST_RES" == *"Lord Alistair"* ]] || [[ "$CHAT_HIST_RES" == *"BUTLER_BOT"* ]]'
+
+echo -e "\n${CYAN}▶ SUITE 13: Luxury Add-ons & VIP Experience Catalog (8089)${NC}"
+ADDON_CATALOG=$(curl -s "$GATEWAY_URL/api/addons")
+assert_test "GET /api/addons returns signature VIP experience catalog" '[[ "$ADDON_CATALOG" == *"HELI_TRANSFER"* ]] && [[ "$ADDON_CATALOG" == *"CHAMPAGNE_VIP"* ]]'
+
+ATTACH_ADDON=$(curl -s -X POST "$GATEWAY_URL/api/addons/attach" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"bookingId": 1, "addonCode": "HELI_TRANSFER", "quantity": 1, "specialRequests": "Helipad VIP arrival"}')
+assert_test "POST /api/addons/attach links luxury experience to booking" '[[ "$ATTACH_ADDON" == *"HELI_TRANSFER"* ]]'
+
+echo -e "\n${CYAN}▶ SUITE 14: Automated Luxury PDF Voucher & Itinerary Generator${NC}"
+PDF_CONTENT_TYPE=$(curl -s -I "$GATEWAY_URL/api/notifications/pdf/1" | grep -i "content-type" || true)
+assert_test "GET /api/notifications/pdf/1 generates valid application/pdf binary" '[[ "$PDF_CONTENT_TYPE" == *"application/pdf"* ]]'
+
+echo -e "\n${CYAN}▶ SUITE 15: OAuth2 / Social SSO & 2FA Security Enhancement${NC}"
+SSO_TOKEN=$(curl -s -X POST "$GATEWAY_URL/api/users/oauth2/sso" \
+  -H "Content-Type: application/json" \
+  -d '{"provider": "Google", "email": "elena.rostova@starlightstays.luxury", "name": "Elena Rostova"}')
+assert_test "POST /api/users/oauth2/sso generates signed federated JWT" '[[ "$SSO_TOKEN" == *"token"* ]] && [[ "$SSO_TOKEN" == *"AUTHENTICATED_SSO"* ]]'
+
+TWOFA_RES=$(curl -s -X POST "$GATEWAY_URL/api/users/2fa/verify" \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "code": "777888"}')
+assert_test "POST /api/users/2fa/verify validates TOTP & grants elevation" '[[ "$TWOFA_RES" == *"VERIFIED"* ]]'
+
 echo -e "\n======================================================================"
 echo -e "${BOLD}TEST SUMMARY:${NC} ${GREEN}$PASSED_COUNT Passed${NC} / ${RED}$FAILED_COUNT Failed${NC}"
 echo "======================================================================"
 
 if [ "$FAILED_COUNT" -eq 0 ]; then
-  echo -e "${GREEN}🎉 ALL 11 TEST SUITES COMPLETED WITH 100% SUCCESS!${NC}"
+  echo -e "${GREEN}🎉 ALL 15 TEST SUITES COMPLETED WITH 100% SUCCESS!${NC}"
   exit 0
 else
   echo -e "${RED}⚠️ Some test assertions failed. Inspect logs above.${NC}"

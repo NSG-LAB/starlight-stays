@@ -18,6 +18,15 @@ import {
   createReview,
   fetchAllBookings,
   getConciergeRecommendation,
+  fetchAddons,
+  attachAddon,
+  fetchBookingAddons,
+  downloadVoucherPdf,
+  fetchChatHistory,
+  sendChatMessage,
+  socialLogin,
+  setup2FA,
+  verify2FA,
 } from './services/api.js';
 
 import {
@@ -1012,9 +1021,14 @@ async function loadNotifications() {
             <span>🏷️</span>
             <span>${n.voucherCode}</span>
           </div>
-          <button class="btn btn-secondary btn-sm btn-copy-voucher" data-code="${n.voucherCode}">
-            📋 Copy Code
-          </button>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn btn-secondary btn-sm btn-copy-voucher" data-code="${n.voucherCode}">
+              📋 Copy Code
+            </button>
+            <button class="btn btn-primary btn-sm btn-download-pdf" data-booking-id="${n.bookingId || 1}">
+              📥 PDF Voucher
+            </button>
+          </div>
         </div>
       `;
       notificationsList.appendChild(card);
@@ -1026,6 +1040,21 @@ async function loadNotifications() {
         navigator.clipboard.writeText(code);
         e.target.textContent = '✓ Copied!';
         setTimeout(() => { e.target.textContent = '📋 Copy Code'; }, 2000);
+      });
+    });
+
+    notificationsList.querySelectorAll('.btn-download-pdf').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const bookingId = e.currentTarget.getAttribute('data-booking-id') || 1;
+        try {
+          e.currentTarget.textContent = '⏳ Rendering...';
+          await downloadVoucherPdf(bookingId);
+          showToast('Voucher Downloaded', `Official PDF itinerary and check-in voucher saved for #${bookingId}`, 'success');
+        } catch (err) {
+          showToast('PDF Error', err.message, 'danger');
+        } finally {
+          e.currentTarget.textContent = '📥 PDF Voucher';
+        }
       });
     });
   } catch (err) {
@@ -1319,11 +1348,204 @@ if (conciergeForm) {
   });
 }
 
-if (btnConciergeReserve) {
-  btnConciergeReserve.addEventListener('click', () => {
-    if (conciergeModal) conciergeModal.classList.add('hidden');
-    openBookingModal(recommendedRoomId);
+// ---------------- VIP Concierge Live Chat (Phase 1) ----------------
+const chatModal = document.getElementById('chat-modal');
+const btnFloatingChat = document.getElementById('btn-floating-chat');
+const btnCloseChatModal = document.getElementById('btn-close-chat-modal');
+const chatMessagesContainer = document.getElementById('chat-messages-container');
+const chatInputText = document.getElementById('chat-input-text');
+const btnSendChat = document.getElementById('btn-send-chat');
+let chatPollInterval = null;
+
+function getChatChannelId() {
+  const user = getCurrentUser() || 'guest-resident';
+  return `channel-${user}`;
+}
+
+function appendChatMessage(msg) {
+  if (!chatMessagesContainer) return;
+  const isButler = msg.senderRole === 'BUTLER_BOT' || (msg.sender && msg.sender.includes('Butler'));
+  const bubble = document.createElement('div');
+  bubble.className = `chat-bubble ${isButler ? 'butler' : 'guest'}`;
+  bubble.innerHTML = `
+    <div class="chat-bubble-sender">
+      <span>${isButler ? '🎩' : '👤'}</span>
+      <span>${msg.sender || (isButler ? 'Lord Alistair' : 'Guest')}</span>
+    </div>
+    <div>${msg.content}</div>
+  `;
+  chatMessagesContainer.appendChild(bubble);
+  chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+}
+
+async function loadChatMessages() {
+  const channelId = getChatChannelId();
+  try {
+    const history = await fetchChatHistory(channelId);
+    if (!chatMessagesContainer) return;
+    chatMessagesContainer.innerHTML = '';
+    
+    if (history.length === 0) {
+      appendChatMessage({
+        sender: 'Lord Alistair (Head Butler)',
+        senderRole: 'BUTLER_BOT',
+        content: `Good day, ${getCurrentUser() || 'esteemed resident'}. I am Lord Alistair, your personal presidential head butler. How may our concierge team elevate your luxury stay at Starlight Stays today?`
+      });
+    } else {
+      history.forEach(appendChatMessage);
+    }
+  } catch (e) {
+    console.warn('Could not load chat history:', e);
+  }
+}
+
+async function handleSendMessage(customContent = null) {
+  const content = customContent || (chatInputText ? chatInputText.value.trim() : '');
+  if (!content) return;
+  if (chatInputText) chatInputText.value = '';
+
+  const channelId = getChatChannelId();
+  const sender = getCurrentUser() || 'VIP Resident';
+
+  appendChatMessage({ sender, senderRole: 'GUEST', content });
+
+  try {
+    await sendChatMessage({ channelId, sender, content, senderRole: 'GUEST' });
+    setTimeout(loadChatMessages, 900);
+  } catch (err) {
+    showToast('Chat Error', 'Unable to send message', 'danger');
+  }
+}
+
+if (btnFloatingChat) {
+  btnFloatingChat.addEventListener('click', () => {
+    if (chatModal) {
+      chatModal.classList.remove('hidden');
+      loadChatMessages();
+      if (!chatPollInterval) {
+        chatPollInterval = setInterval(loadChatMessages, 4000);
+      }
+    }
   });
+}
+
+if (btnCloseChatModal) {
+  btnCloseChatModal.addEventListener('click', () => {
+    if (chatModal) chatModal.classList.add('hidden');
+    if (chatPollInterval) {
+      clearInterval(chatPollInterval);
+      chatPollInterval = null;
+    }
+  });
+}
+
+if (btnSendChat) {
+  btnSendChat.addEventListener('click', () => handleSendMessage());
+}
+
+if (chatInputText) {
+  chatInputText.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  });
+}
+
+document.querySelectorAll('.chat-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const msg = chip.getAttribute('data-msg');
+    handleSendMessage(msg);
+  });
+});
+
+// ---------------- Social SSO & 2FA (Phase 4) ----------------
+const btnSsoGoogle = document.getElementById('btn-sso-google');
+const btnSsoGithub = document.getElementById('btn-sso-github');
+const btnVerify2fa = document.getElementById('btn-verify-2fa');
+const twofaCodeInput = document.getElementById('twofa-code-input');
+
+if (btnSsoGoogle) {
+  btnSsoGoogle.addEventListener('click', async () => {
+    try {
+      btnSsoGoogle.disabled = true;
+      btnSsoGoogle.textContent = '⏳ Authenticating...';
+      const ssoRes = await socialLogin({
+        provider: 'Google',
+        email: 'alexandra.vance@starlightstays.luxury',
+        name: 'Alexandra Vance'
+      });
+      showToast('Google SSO Verified', `Welcome back, ${ssoRes.displayName}! Authenticated via OAuth2.`, 'success');
+      if (authModal) authModal.classList.add('hidden');
+      loadNotifications();
+    } catch (err) {
+      showToast('SSO Error', err.message, 'danger');
+    } finally {
+      btnSsoGoogle.disabled = false;
+      btnSsoGoogle.innerHTML = '<span>🌐</span> Google SSO';
+    }
+  });
+}
+
+if (btnSsoGithub) {
+  btnSsoGithub.addEventListener('click', async () => {
+    try {
+      btnSsoGithub.disabled = true;
+      btnSsoGithub.textContent = '⏳ Authenticating...';
+      const ssoRes = await socialLogin({
+        provider: 'GitHub',
+        email: 'dev.lead@starlightstays.luxury',
+        name: 'VIP Tech Fellow'
+      });
+      showToast('GitHub SSO Verified', `Welcome back, ${ssoRes.displayName}! Authenticated via OAuth2.`, 'success');
+      if (authModal) authModal.classList.add('hidden');
+      loadNotifications();
+    } catch (err) {
+      showToast('SSO Error', err.message, 'danger');
+    } finally {
+      btnSsoGithub.disabled = false;
+      btnSsoGithub.innerHTML = '<span>🐙</span> GitHub SSO';
+    }
+  });
+}
+
+if (btnVerify2fa) {
+  btnVerify2fa.addEventListener('click', async () => {
+    const code = twofaCodeInput ? twofaCodeInput.value.trim() : '';
+    if (!code) {
+      showToast('2FA Required', 'Please enter your 6-digit OTP code (Demo: 777888)', 'warning');
+      return;
+    }
+    try {
+      btnVerify2fa.disabled = true;
+      btnVerify2fa.textContent = 'Verifying...';
+      const result = await verify2FA({ username: getCurrentUser() || 'admin', code });
+      showToast('2FA Elevation Verified', result.message, 'success');
+      if (twofaCodeInput) twofaCodeInput.value = '';
+    } catch (err) {
+      showToast('2FA Failed', err.message, 'danger');
+    } finally {
+      btnVerify2fa.disabled = false;
+      btnVerify2fa.textContent = 'Verify 2FA';
+    }
+  });
+}
+
+// ---------------- Luxury Addons Catalog (Phase 2) ----------------
+async function populateAddonChoices() {
+  const select = document.getElementById('booking-vip-addon');
+  if (!select) return;
+  try {
+    const addons = await fetchAddons();
+    if (addons && addons.length > 0) {
+      select.innerHTML = `
+        <option value="STANDARD" data-price="0">Standard Luxury Welcome (Complimentary)</option>
+        ${addons.map(a => `<option value="${a.code}" data-price="${a.price}">${a.icon} ${a.title} (+$${a.price})</option>`).join('')}
+      `;
+    }
+  } catch (e) {
+    console.warn('Could not load addon catalog:', e);
+  }
 }
 
 // ---------------- Bootstrap Initialization ----------------
@@ -1332,6 +1554,7 @@ async function init() {
   await ensureAuthenticated();
   await loadRooms();
   await loadNotifications();
+  await populateAddonChoices();
   connectWebSocket();
 }
 

@@ -23,5 +23,7 @@
         <module>notification-service</module>
         <module>review-service</module>
         <module>concierge-service</module>
+        <module>chat-service</module>
+        <module>addon-service</module>
     </modules>
 </project>
